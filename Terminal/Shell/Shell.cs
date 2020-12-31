@@ -13,8 +13,9 @@ namespace System.Shell
         private String _base { get; set; }
         private List<String> _args { get; } = new List<string>();
         private Dictionary<String, Action<List<String>>> _commandList { get; } = new Dictionary<String, Action<List<String>>>();
-        private Dictionary<String, Action<List<String>>> _defaultCommandList { get; } = new Dictionary<string, Action<List<string>>>();
+        private Dictionary<String, Action<List<String>>> _defaultCommandList { get; } = new Dictionary<String, Action<List<String>>>();
         public IEnumerable<String> DefaultCommands => _defaultCommandList.Select(pair => pair.Key);
+        public IEnumerable<String> NonDefaultCommands => _commandList.Where(pair => !_defaultCommandList.ContainsKey(pair.Key)).Select(pair => pair.Key);
         public Action Reference { get; set; } = () =>
         {
             Console.WriteLine("Use 'help' to see all the available commands in current shell!");
@@ -49,6 +50,9 @@ namespace System.Shell
                         Environment.Exit(0);
                     }
                 }),
+                Command.Create("close", Args => { 
+                
+                }),
                 Command.Create("commands", Args => {
                     if (Args.Count == 0)
                     {
@@ -62,11 +66,11 @@ namespace System.Shell
                     
                     switch (Args[0])
                     {
-                        case "-a":
+                        case "-n":
                             {
-                                foreach (var command in _commandList)
+                                foreach (var command in NonDefaultCommands)
                                 {
-                                    Console.WriteLine(command.Key);
+                                    Console.WriteLine(command);
                                 }
                                 Console.WriteLine();
 
@@ -185,14 +189,17 @@ namespace System.Shell
             Console.Clear();
             Reference.Invoke();
         }
-        private void Execute()
+        private bool Execute()
         {
             if (_commandList.ContainsKey(_base))
             {
                 Action<List<String>> action;
                 _commandList.TryGetValue(_base.ToLower(), out action);
                 if (action != null) action.Invoke(_args);
+                if (_commandList.ContainsKey("close") && _base == "close") return false;
             }
+
+            return true;
         }
         public void Execute(String command)
         {
@@ -202,11 +209,19 @@ namespace System.Shell
         }
         public void Execute(params String[] commands)
         {
-            foreach (var command in commands) this.Execute(command);
+            foreach (var command in commands)
+            {
+                Console.WriteLine($"Executing: {command}\n");
+                this.Execute(command);
+            }
         }
         public void Execute(IEnumerable<String> commands)
         {
-            foreach (var command in commands) this.Execute(command);
+            foreach (var command in commands)
+            {
+                Console.WriteLine($"Executing: {command}\n");
+                this.Execute(command);
+            }
         }
         public static bool Confirmation(string Line = "")
         {
@@ -241,7 +256,7 @@ namespace System.Shell
             {
                 _command = this.Enter(">");
                 this.GetArgs();
-                this.Execute();
+                if (!this.Execute()) break;
             }
         }
     }

@@ -24,9 +24,7 @@ namespace Terminal
         static void Main(string[] args)
         {
             var shell = new Shell(Commands);
-
-            shell.Bind("Test", Args => { Console.WriteLine("Nico\n"); });
-            shell.Run();
+            shell.Run(args);
         }
     }
 }
