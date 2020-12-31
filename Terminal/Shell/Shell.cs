@@ -13,6 +13,8 @@ namespace System.Shell
         private String _base { get; set; }
         private List<String> _args { get; } = new List<string>();
         private Dictionary<String, Action<List<String>>> _commandList { get; } = new Dictionary<String, Action<List<String>>>();
+        private Dictionary<String, Action<List<String>>> _defaultCommandList { get; } = new Dictionary<string, Action<List<string>>>();
+        public IEnumerable<String> DefaultCommands => _defaultCommandList.Select(pair => pair.Key);
         public Action Reference { get; set; } = () =>
         {
             Console.WriteLine("Use 'help' to see all the available commands in current shell!");
@@ -20,27 +22,101 @@ namespace System.Shell
         };
         public Shell()
         {
-            Bind(
+            this.Initialize();
+        }
+        public Shell(params Command[] commands)
+        {
+            this.Initialize();
+            this.Initialize(commands);
+        }
+        public Shell(IEnumerable<Command> commands)
+        {
+            this.Initialize();
+            this.Initialize(commands);
+        }
+        private void Initialize()
+        {
+            this.Initialize(
                 Command.Create("help", Args => {
                     Console.WriteLine("You can override 'help' command using method Bind\n");
                 }),
                 Command.Create("cls", Args => {
                     this.Clear();
                 }),
-                Command.Create("exit", Args => { 
+                Command.Create("exit", Args => {
                     if (Shell.Confirmation("You really want to exit?"))
                     {
                         Environment.Exit(0);
                     }
                 }),
                 Command.Create("commands", Args => {
-                    foreach (var command in _commandList)
+                    if (Args.Count == 0)
                     {
-                        Console.WriteLine(command.Key);
+                        foreach (var command in _commandList)
+                        {
+                            Console.WriteLine(command.Key);
+                        }
+                        Console.WriteLine();
+                        return;
                     }
-                    Console.WriteLine();
+                    
+                    switch (Args[0])
+                    {
+                        case "-a":
+                            {
+                                foreach (var command in _commandList)
+                                {
+                                    Console.WriteLine(command.Key);
+                                }
+                                Console.WriteLine();
+
+                                break;
+                            }
+                        case "-d":
+                            {
+                                foreach (var command in DefaultCommands)
+                                {
+                                    Console.WriteLine(command);
+                                }
+                                Console.WriteLine();
+
+                                break;
+                            }
+                    }
                 })
             );
+        }
+        private void Initialize(IEnumerable<Command> commands)
+        {
+            foreach (var command in commands)
+            {
+                if (!(_defaultCommandList.ContainsKey(command.command.ToLower())))
+                {
+                    _defaultCommandList.Add(command.command.ToLower(), command.action);
+                }
+                else
+                {
+                    _defaultCommandList[command.command.ToLower()] = command.action;
+                }
+            }
+            
+            this.Bind(_defaultCommandList);
+        }
+        private void Initialize(params Command[] commands)
+        {
+            foreach (var command in commands)
+            {
+                if (!(_defaultCommandList.ContainsKey(command.command.ToLower())))
+                {
+                    _defaultCommandList.Add(command.command.ToLower(), command.action);
+                }
+                else
+                {
+                    _defaultCommandList[command.command.ToLower()] = command.action;
+                }
+            }
+
+            this.Bind(_defaultCommandList);
         }
         public void Bind(String command, Action<List<String>> action)
         {
@@ -50,7 +126,10 @@ namespace System.Shell
             }
             else
             {
-                _commandList[command.ToLower()] = action;
+                if (!DefaultCommands.Contains(command.ToLower()) || command.ToLower() == "help")
+                {
+                    _commandList[command.ToLower()] = action;
+                }
             }
         }
         public void Bind(params Command[] commands)
@@ -65,6 +144,13 @@ namespace System.Shell
             foreach (var item in commands)
             {
                 this.Bind(item.command, item.action);
+            }
+        }
+        private void Bind(Dictionary<String, Action<List<String>>> commands)
+        {
+            foreach (var command in commands)
+            {
+                this.Bind(command.Key, command.Value);
             }
         }
         private String[] ArgsCollection(string ParamStr, string Pattern = "([\"].+?[\"]|[^ ]+)+")

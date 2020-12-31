@@ -23,11 +23,10 @@ namespace Terminal
         };
         static void Main(string[] args)
         {
-            var shell = new Shell();
+            var shell = new Shell(Commands);
 
-            shell.Bind(Commands);
+            shell.Bind("Test", Args => { Console.WriteLine("Nico\n"); });
             shell.Run();
-
         }
     }
 }
